@@ -79,3 +79,11 @@ If you find this repository helpful, please consider citing our paper:
 
 ## Contact
 Please feel free to contact Haichao Yu at haichao.yu@outlook.com for any issue.
+
+## Result
+
+ALL CONV 1bit => 91.30
+ALL CONV 2bit => 88.10
+ALL CONV 4bit => 80.30
+
+ALL CONV 2bit => EPOCH 8 => 92.50

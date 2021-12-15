@@ -4,3 +4,9 @@ __pycache__
 .nfs*
 /data
 /results
+*.out
+custom_*
+pretrained*
+*.csv
+testset
+wandb
