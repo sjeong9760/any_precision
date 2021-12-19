@@ -1,8 +1,9 @@
 # Refer to https://arxiv.org/abs/1512.03385
+import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from .quan_ops import conv2d_quantize_fn, activation_quantize_fn, batchnorm_fn
+from .quan_ops import conv2d_quantize_fn, activation_quantize_fn, batchnorm_fn, linear_quantize_fn
 
 __all__ = ['resnet20q', 'resnet50q']
 
@@ -30,13 +31,18 @@ class Activate(nn.Module):
 class PreActBasicBlockQ(nn.Module):
     """Pre-activation version of the BasicBlock.
     """
-    def __init__(self, bit_list, in_planes, out_planes, stride=1):
+    def __init__(self, num, bit_list, in_planes, out_planes, stride=1):
         super(PreActBasicBlockQ, self).__init__()
         self.bit_list = bit_list
         self.wbit = self.bit_list[-1]
         self.abit = self.bit_list[-1]
+        self.num = num
+
+        self.out_planes = out_planes
+        self.stride = stride
 
         Conv2d = conv2d_quantize_fn(self.bit_list)
+        Conv2d_2 = conv2d_quantize_fn(self.bit_list)
         NormLayer = batchnorm_fn(self.bit_list)
 
         self.bn0 = NormLayer(in_planes)
@@ -48,25 +54,43 @@ class PreActBasicBlockQ(nn.Module):
 
         self.skip_conv = None
         if stride != 1:
-            self.skip_conv = nn.Conv2d(in_planes, out_planes, kernel_size=1, stride=stride, padding=0, bias=False)
+            #self.skip_conv = nn.Conv2d(in_planes, out_planes, kernel_size=1, stride=stride, padding=0, bias=False)
+            self.skip_conv = Conv2d_2(in_planes, out_planes, kernel_size=1, stride=stride, padding=0, bias=False)
             self.skip_bn = nn.BatchNorm2d(out_planes)
 
     def forward(self, x):
-        out = self.bn0(x)
-        out = self.act0(out)
+        out = self.bn0(x) # Full-precision batchnorm
+        out = self.act0(out) # First: Clamp (out, 0.0, 1.0), Second: round ((out * 3.0) / 3.0)
+        # Out == (0.0, 0.3, 0.6, 1.0)
 
         if self.skip_conv is not None:
-            shortcut = self.skip_conv(out)
-            shortcut = self.skip_bn(shortcut)
+            shortcut = self.skip_conv(out) # Full-precision conv
+            shortcut = self.skip_bn(shortcut) # Full-precision batchnorm
         else:
             shortcut = x
 
-        out = self.conv0(out)
-        out = self.bn1(out)
-        out = self.act1(out)
-        out = self.conv1(out)
+        out = self.conv0(out) # Weight-quantization (-A, -B, B, A)
+        out = self.bn1(out) # Full-precision batchnorm
+        out = self.act1(out) # First: Clamp(0.0, 1.0), Second: round((out * 3.0) / 3.0)
+        # Out == (0.0, 0.3, 0.6, 1.0)
+
+        out = self.conv1(out) # Weight-quantization (-A, -B, B, A)
+        '''
+        if self.num != 7:
+            out = self.conv0(out) # Weight-quantization (-A, -B, B, A)
+            out = self.bn1(out) # Full-precision batchnorm
+            out = self.act1(out) # First: Clamp(0.0, 1.0), Second: round((out * 3.0) / 3.0)
+            # Out == (0.0, 0.3, 0.6, 1.0)
+
+            out = self.conv1(out) # Weight-quantization (-A, -B, B, A)
+        '''
         out += shortcut
         return out
+
+    def get_channel(self):
+        return self.out_planes
+    def get_stride(self):
+        return self.stride
 
 
 class PreActResNet(nn.Module):
@@ -77,29 +101,47 @@ class PreActResNet(nn.Module):
         self.abit = self.bit_list[-1]
         self.expand = expand
 
+        #Conv2d = conv2d_quantize_fn(self.bit_list)
         NormLayer = batchnorm_fn(self.bit_list)
 
         ep = self.expand
         self.conv0 = nn.Conv2d(3, 16 * ep, kernel_size=3, stride=1, padding=1, bias=False)
+        #self.conv0 = Conv2d(3, 16 * ep, kernel_size=3, stride=1, padding=1, bias=False)
+        layer_list = [0, 3, 4, 6, 7]
 
         strides = [1] * num_units[0] + [2] + [1] * (num_units[1] - 1) + [2] + [1] * (num_units[2] - 1)
         channels = [16 * ep] * num_units[0] + [32 * ep] * num_units[1] + [64 * ep] * num_units[2]
         in_planes = 16 * ep
+
+        strides = list(np.array(strides)[layer_list])
+        channels = list(np.array(channels)[layer_list])
+
         self.layers = nn.ModuleList()
-        for stride, channel in zip(strides, channels):
-            self.layers.append(block(self.bit_list, in_planes, channel, stride))
+
+        for i, (stride, channel) in enumerate(zip(strides, channels)):
+            self.layers.append(block(layer_list[i], self.bit_list, in_planes, channel, stride))
             in_planes = channel
 
         self.bn = NormLayer(64 * ep)
-        self.fc = nn.Linear(64 * ep, num_classes)
+        #self.fc = nn.Linear(64 * ep, num_classes)
+        FCLayer = linear_quantize_fn(self.bit_list)
+        self.fc = FCLayer(64 * ep, num_classes)
 
     def forward(self, x):
-        out = self.conv0(x)
+        counter = set()
+        out = self.conv0(x) # Full-precision convolution
+        sum = 0
         for layer in self.layers:
-            out = layer(out)
+            stride, channel = layer.stride, layer.out_planes
+            if not (stride, channel) in counter:
+                for p in layer.parameters():
+                    sum += p.numel()
+                out = layer(out)
+                counter.add((stride, channel))
         out = self.bn(out)
         out = out.mean(dim=2).mean(dim=2)
         out = self.fc(out)
+        del counter
         return out
 
 
