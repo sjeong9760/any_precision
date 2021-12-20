@@ -12,10 +12,8 @@
 typedef ap_uint<AP_SIZE> WEIGHT_T;
 
 // Declare the array size of parameters
-#define BB_0_ALPHA_BETA_LEN \
-  GET_WEIGHT_ARRAY_LEN(bbShapes[0].bn_alpha_shape)
-#define BB_0_CONV_BN_ALPHA_BETA_LEN \
-  GET_WEIGHT_ARRAY_LEN(bbShapes[0].conv_bn_alpha_shape)
+#define BB_0_ALPHA_BETA_LEN (bbShapes[0].bn_alpha_shape)
+#define BB_0_CONV_BN_ALPHA_BETA_LEN (bbShapes[0].conv_bn_alpha_shape)
 #define BB_0_CONV_BN_WEIGHT_LEN \
   GET_WEIGHT_ARRAY_LEN( \
     bbShapes[0].conv_bn_weight_shape[0] * bbShapes[0].conv_bn_weight_shape[1] * \
@@ -26,16 +24,13 @@ typedef ap_uint<AP_SIZE> WEIGHT_T;
     bbShapes[0].conv_weight_shape[2] * bbShapes[0].conv_weight_shape[3])
 
 
-#define BB_1_ALPHA_BETA_LEN \
-  GET_WEIGHT_ARRAY_LEN(bbShapes[1].bn_alpha_shape)
-#define BB_1_SKIP_CONV_BN_ALPHA_BETA_LEN \
-  GET_WEIGHT_ARRAY_LEN(bbShapes[1].skip_conv_bn_alpha_shape)
+#define BB_1_ALPHA_BETA_LEN (bbShapes[1].bn_alpha_shape)
+#define BB_1_SKIP_CONV_BN_ALPHA_BETA_LEN (bbShapes[1].skip_conv_bn_alpha_shape)
 #define BB_1_SKIP_CONV_BN_WEIGHT_LEN \
   GET_WEIGHT_ARRAY_LEN( \
     bbShapes[1].skip_conv_bn_weight_shape[0] * bbShapes[1].skip_conv_bn_weight_shape[1] * \
     bbShapes[1].skip_conv_bn_weight_shape[2] * bbShapes[1].skip_conv_bn_weight_shape[3])
-#define BB_1_CONV_BN_ALPHA_BETA_LEN \
-  GET_WEIGHT_ARRAY_LEN(bbShapes[0].conv_bn_alpha_shape)
+#define BB_1_CONV_BN_ALPHA_BETA_LEN (bbShapes[0].conv_bn_alpha_shape)
 #define BB_1_CONV_BN_WEIGHT_LEN \
   GET_WEIGHT_ARRAY_LEN( \
     bbShapes[1].conv_bn_weight_shape[0] * bbShapes[1].conv_bn_weight_shape[1] * \
@@ -46,10 +41,8 @@ typedef ap_uint<AP_SIZE> WEIGHT_T;
     bbShapes[1].conv_weight_shape[2] * bbShapes[1].conv_weight_shape[3])
 
 
-#define BB_2_ALPHA_BETA_LEN \
-  GET_WEIGHT_ARRAY_LEN(bbShapes[2].bn_alpha_shape)
-#define BB_2_CONV_BN_ALPHA_BETA_LEN \
-  GET_WEIGHT_ARRAY_LEN(bbShapes[2].conv_bn_alpha_shape)
+#define BB_2_ALPHA_BETA_LEN (bbShapes[2].bn_alpha_shape)
+#define BB_2_CONV_BN_ALPHA_BETA_LEN (bbShapes[2].conv_bn_alpha_shape)
 #define BB_2_CONV_BN_WEIGHT_LEN \
   GET_WEIGHT_ARRAY_LEN( \
     bbShapes[2].conv_bn_weight_shape[0] * bbShapes[2].conv_bn_weight_shape[1] * \
@@ -60,16 +53,13 @@ typedef ap_uint<AP_SIZE> WEIGHT_T;
     bbShapes[2].conv_weight_shape[2] * bbShapes[2].conv_weight_shape[3])
 
 
-#define BB_3_ALPHA_BETA_LEN \
-  GET_WEIGHT_ARRAY_LEN(bbShapes[3].bn_alpha_shape)
-#define BB_3_SKIP_CONV_BN_ALPHA_BETA_LEN \
-  GET_WEIGHT_ARRAY_LEN(bbShapes[3].skip_conv_bn_alpha_shape)
+#define BB_3_ALPHA_BETA_LEN (bbShapes[3].bn_alpha_shape)
+#define BB_3_SKIP_CONV_BN_ALPHA_BETA_LEN (bbShapes[3].skip_conv_bn_alpha_shape)
 #define BB_3_SKIP_CONV_BN_WEIGHT_LEN \
   GET_WEIGHT_ARRAY_LEN( \
     bbShapes[3].skip_conv_bn_weight_shape[0] * bbShapes[3].skip_conv_bn_weight_shape[1] * \
     bbShapes[3].skip_conv_bn_weight_shape[2] * bbShapes[3].skip_conv_bn_weight_shape[3])
-#define BB_3_CONV_BN_ALPHA_BETA_LEN \
-  GET_WEIGHT_ARRAY_LEN(bbShapes[0].conv_bn_alpha_shape)
+#define BB_3_CONV_BN_ALPHA_BETA_LEN (bbShapes[0].conv_bn_alpha_shape)
 #define BB_3_CONV_BN_WEIGHT_LEN \
   GET_WEIGHT_ARRAY_LEN( \
     bbShapes[3].conv_bn_weight_shape[0] * bbShapes[3].conv_bn_weight_shape[1] * \
@@ -80,16 +70,14 @@ typedef ap_uint<AP_SIZE> WEIGHT_T;
     bbShapes[3].conv_weight_shape[2] * bbShapes[3].conv_weight_shape[3])
 
 
-#define BB_4_ALPHA_BETA_LEN \
-  GET_WEIGHT_ARRAY_LEN(bbShapes[4].bn_alpha_shape)
+#define BB_4_ALPHA_BETA_LEN (bbShapes[4].bn_alpha_shape)
 #define BB_4_CONV_WEIGHT_LEN \
   GET_WEIGHT_ARRAY_LEN( \
     bbShapes[4].conv_weight_shape[0] * bbShapes[4].conv_weight_shape[1] * \
     bbShapes[4].conv_weight_shape[2] * bbShapes[4].conv_weight_shape[3])
 
 
-#define OUTER_ALPHA_BETA_LEN \
-  GET_WEIGHT_ARRAY_LEN(otherShapes.bn_alpha_shape)
+#define OUTER_ALPHA_BETA_LEN (otherShapes.bn_alpha_shape)
 #define OUTER_FC_WEIGHT_LEN \
   GET_WEIGHT_ARRAY_LEN( \
     otherShapes.fc_weight_shape[0] * otherShapes.fc_weight_shape[1])
