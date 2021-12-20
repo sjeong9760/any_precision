@@ -5,85 +5,108 @@
 
 #include "model_shape.h"
 
+#define AP_SIZE 32
+#define GET_WEIGHT_ARRAY_LEN(x) ((x) / (AP_SIZE))
+
+// Declare the array size of parameters
+const uint16_t bb_0_conv_0_weight_len =
+  GET_WEIGHT_ARRAY_LEN(
+    bbShapes[0].conv_0_shape[0] * bbShapes[0].conv_0_shape[1] * 
+    bbShapes[0].conv_0_shape[2] * bbShapes[0].conv_0_shape[3]);
+const uint16_t bb_0_conv_1_weight_len =
+  GET_WEIGHT_ARRAY_LEN(
+    bbShapes[0].conv_1_shape[0] * bbShapes[0].conv_1_shape[1] * 
+    bbShapes[0].conv_1_shape[2] * bbShapes[0].conv_1_shape[3]);
+
+const uint16_t bb_1_conv_0_weight_len =
+  GET_WEIGHT_ARRAY_LEN(
+    bbShapes[1].conv_0_shape[0] * bbShapes[1].conv_0_shape[1] * 
+    bbShapes[1].conv_0_shape[2] * bbShapes[1].conv_0_shape[3]);
+const uint16_t bb_1_conv_1_weight_len =
+  GET_WEIGHT_ARRAY_LEN(
+    bbShapes[1].conv_1_shape[0] * bbShapes[1].conv_1_shape[1] * 
+    bbShapes[1].conv_1_shape[2] * bbShapes[1].conv_1_shape[3]);
+const uint16_t bb_1_conv_skip_weight_len = 
+  GET_WEIGHT_ARRAY_LEN(
+    bbShapes[1].conv_skip_shape[0] * bbShapes[1].conv_skip_shape[1] * 
+    bbShapes[1].conv_skip_shape[2] * bbShapes[1].conv_skip_shape[3]);
+
+const uint16_t bb_2_conv_0_weight_len =
+  GET_WEIGHT_ARRAY_LEN(
+    bbShapes[2].conv_0_shape[0] * bbShapes[2].conv_0_shape[1] * 
+    bbShapes[2].conv_0_shape[2] * bbShapes[2].conv_0_shape[3]);
+const uint16_t bb_2_conv_1_weight_len =
+  GET_WEIGHT_ARRAY_LEN(
+    bbShapes[2].conv_1_shape[0] * bbShapes[2].conv_1_shape[1] * 
+    bbShapes[2].conv_1_shape[2] * bbShapes[2].conv_1_shape[3]);
+
+const uint16_t bb_3_conv_0_weight_len =
+  GET_WEIGHT_ARRAY_LEN(
+    bbShapes[3].conv_0_shape[0] * bbShapes[3].conv_0_shape[1] * 
+    bbShapes[3].conv_0_shape[2] * bbShapes[3].conv_0_shape[3]);
+const uint16_t bb_3_conv_1_weight_len =
+  GET_WEIGHT_ARRAY_LEN(
+    bbShapes[3].conv_1_shape[0] * bbShapes[3].conv_1_shape[1] * 
+    bbShapes[3].conv_1_shape[2] * bbShapes[3].conv_1_shape[3]);
+const uint16_t bb_3_conv_skip_weight_len = 
+  GET_WEIGHT_ARRAY_LEN(
+    bbShapes[3].conv_skip_shape[0] * bbShapes[3].conv_skip_shape[1] * 
+    bbShapes[3].conv_skip_shape[2] * bbShapes[3].conv_skip_shape[3]);
+
+const uint16_t bb_4_conv_1_weight_len = 
+  GET_WEIGHT_ARRAY_LEN(
+    bbShapes[4].conv_1_shape[0] * bbShapes[4].conv_1_shape[1] * 
+    bbShapes[4].conv_1_shape[2] * bbShapes[4].conv_1_shape[3]);
+
+const uint16_t fc_weight_len = 
+  GET_WEIGHT_ARRAY_LEN(
+    otherShapes.fc_weight_shape[0] * otherShapes.fc_weight_shape[1]);
+
+
 // CONV 0 parameter of Basic Block 0
-ap_int<1> bb_0_conv_0_weight[
-  bbShapes[0].conv_0_shape[0] * bbShapes[0].conv_0_shape[1] * 
-  bbShapes[0].conv_0_shape[2] * bbShapes[0].conv_0_shape[3]
-];
+ap_int<AP_SIZE> bb_0_conv_0_weight[bb_0_conv_0_weight_len];
 // CONV 1 parameter of Basic Block 0
-ap_int<1> bb_0_conv_1_weight[
-  bbShapes[0].conv_1_shape[0] * bbShapes[0].conv_1_shape[1] * 
-  bbShapes[0].conv_1_shape[2] * bbShapes[0].conv_1_shape[3]
-];
+ap_int<AP_SIZE> bb_0_conv_1_weight[bb_0_conv_1_weight_len];
 
 // CONV 0 parameter of Basic Block 1
-ap_int<1> bb_1_conv_0_weight[
-  bbShapes[1].conv_0_shape[0] * bbShapes[1].conv_0_shape[1] * 
-  bbShapes[1].conv_0_shape[2] * bbShapes[1].conv_0_shape[3]
-];
+ap_int<AP_SIZE> bb_1_conv_0_weight[bb_1_conv_0_weight_len];
 // CONV 1 parameter of Basic Block 1
-ap_int<1> bb_1_conv_1_weight[
-  bbShapes[1].conv_1_shape[0] * bbShapes[1].conv_1_shape[1] * 
-  bbShapes[1].conv_1_shape[2] * bbShapes[1].conv_1_shape[3]
-];
+ap_int<AP_SIZE> bb_1_conv_1_weight[bb_1_conv_1_weight_len];
 // SKIP CONV parameter of Basic Block 1
-ap_int<1> bb_1_conv_skip_weight[
-  bbShapes[1].conv_skip_shape[0] * bbShapes[1].conv_skip_shape[1] * 
-  bbShapes[1].conv_skip_shape[2] * bbShapes[1].conv_skip_shape[3]
-];
+ap_int<AP_SIZE> bb_1_conv_skip_weight[bb_1_conv_skip_weight_len];
 
 // CONV 0 parameter of Basic Block 2
-ap_int<1> bb_0_conv_0_weight[
-  bbShapes[2].conv_0_shape[0] * bbShapes[0].conv_0_shape[1] * 
-  bbShapes[2].conv_0_shape[2] * bbShapes[0].conv_0_shape[3]
-];
+ap_int<AP_SIZE> bb_2_conv_0_weight[bb_2_conv_0_weight_len];
 // CONV 1 parameter of Basic Block 2
-ap_int<1> bb_0_conv_1_weight[
-  bbShapes[2].conv_1_shape[0] * bbShapes[0].conv_1_shape[1] * 
-  bbShapes[2].conv_1_shape[2] * bbShapes[0].conv_1_shape[3]
-];
+ap_int<AP_SIZE> bb_2_conv_1_weight[bb_2_conv_1_weight_len];
 
 // CONV 0 parameter of Basic Block 3
-ap_int<1> bb_1_conv_0_weight[
-  bbShapes[3].conv_0_shape[0] * bbShapes[3].conv_0_shape[1] * 
-  bbShapes[3].conv_0_shape[2] * bbShapes[3].conv_0_shape[3]
-];
+ap_int<AP_SIZE> bb_3_conv_0_weight[bb_3_conv_0_weight_len];
 // CONV 1 parameter of Basic Block 3
-ap_int<1> bb_1_conv_1_weight[
-  bbShapes[3].conv_1_shape[0] * bbShapes[3].conv_1_shape[1] * 
-  bbShapes[3].conv_1_shape[2] * bbShapes[3].conv_1_shape[3]
-];
+ap_int<AP_SIZE> bb_3_conv_1_weight[bb_3_conv_1_weight_len];
 // SKIP CONV parameter of Basic Block 3
-ap_int<1> bb_1_conv_skip_weight[
-  bbShapes[3].conv_skip_shape[0] * bbShapes[3].conv_skip_shape[1] * 
-  bbShapes[3].conv_skip_shape[2] * bbShapes[3].conv_skip_shape[3]
-];
+ap_int<AP_SIZE> bb_3_conv_skip_weight[bb_3_conv_skip_weight_len];
 
 // CONV 1 parameter of Basic Block 4
-ap_int<1> bb_4_conv_1_weight[
-  bbShapes[4].conv_1_shape[0] * bbShapes[4].conv_1_shape[1] * 
-  bbShapes[4].conv_1_shape[2] * bbShapes[4].conv_1_shape[3]
-];
+ap_int<AP_SIZE> bb_4_conv_1_weight[bb_4_conv_1_weight_len];
 
 // FC parameter
-ap_int<1> fc_weight[
-  otherShapes.fc_weight_shape[0] * otherShapes.fc_weight_shape[1]
-];
-ap_int<1> fc_bias[otherShapes.fc_bias_shape];
+ap_int<AP_SIZE> fc_weight[fc_weight_len];
+float fc_bias[otherShapes.fc_bias_shape];
 
 // Model parameters
 typedef struct BasicBlockParams {
-  ap_int<1>* conv_0_weight;
-  ap_int<1>* conv_1_weight;
-  ap_int<1>* conv_skip_weight;
+  ap_int<AP_SIZE>* conv_0_weight;
+  ap_int<AP_SIZE>* conv_1_weight;
+  ap_int<AP_SIZE>* conv_skip_weight;
   float conv_0_scale;
   float conv_1_scale;
   float conv_skip_scale;
 } BasicBlockParams;
 
 typedef struct OtherParams {
-  ap_int<1>* fc_weight;
-  ap_int<1>* fc_bias;
+  ap_int<AP_SIZE>* fc_weight;
+  float* fc_bias;
   float fc_scale;
 } OtherParams;
 
