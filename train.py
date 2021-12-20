@@ -1,3 +1,8 @@
+from pprint import pprint
+from torchsummary import summary
+import pandas as pd
+import pickle
+import wandb
 import argparse
 import os
 import time
@@ -14,6 +19,7 @@ from torch.autograd import Variable
 from tensorboardX import SummaryWriter
 
 import models
+from models.quan_ops import SwitchBatchNorm2d
 from models.losses import CrossEntropyLossSoft
 from datasets.data import get_dataset, get_transform
 from optimizer import get_optimizer_config, get_lr_scheduler
@@ -41,13 +47,17 @@ args = parser.parse_args()
 
 
 def main():
+    #wandb.init(project = 'any precision network (remove_last)', 
+               #entity = 'allencho1222', 
+               #name = 'all {} bit (remove_last)'.format(args.bit_width_list[-1]))
     hostname = socket.gethostname()
-    setup_logging(os.path.join(args.results_dir, 'log_{}.txt'.format(hostname)))
+    setup_logging(os.path.join('/home/tmddnjs33/data/emb/any_precision', args.results_dir, 'log_{}.txt'.format(hostname)))
     logging.info("running arguments: %s", args)
 
-    best_gpu = setup_gpus()
-    torch.cuda.set_device(best_gpu)
-    torch.backends.cudnn.benchmark = True
+    device = torch.device("cpu")
+    #best_gpu = setup_gpus()
+    #torch.cuda.set_device(best_gpu)
+    #torch.backends.cudnn.benchmark = True
 
     train_transform = get_transform(args.dataset, 'train')
     train_data = get_dataset(args.dataset, args.train_split, train_transform)
@@ -67,7 +77,8 @@ def main():
 
     bit_width_list = list(map(int, args.bit_width_list.split(',')))
     bit_width_list.sort()
-    model = models.__dict__[args.model](bit_width_list, train_data.num_classes).cuda()
+    #model = models.__dict__[args.model](bit_width_list, train_data.num_classes).cuda()
+    model = models.__dict__[args.model](bit_width_list, train_data.num_classes).cpu()
 
     lr_decay = list(map(int, args.lr_decay.split(',')))
     optimizer = get_optimizer_config(model, args.optimizer, args.lr, args.weight_decay)
@@ -77,7 +88,8 @@ def main():
         if os.path.isdir(args.resume):
             args.resume = os.path.join(args.resume, 'model_best.pth.tar')
         if os.path.isfile(args.resume):
-            checkpoint = torch.load(args.resume, map_location='cuda:{}'.format(best_gpu))
+            #checkpoint = torch.load(args.resume, map_location='cuda:{}'.format(best_gpu))
+            checkpoint = torch.load(args.resume, map_location='cpu')
             args.start_epoch = checkpoint['epoch']
             best_prec1 = checkpoint['best_prec1']
             model.load_state_dict(checkpoint['state_dict'])
@@ -90,9 +102,22 @@ def main():
         if os.path.isdir(args.pretrain):
             args.pretrain = os.path.join(args.pretrain, 'model_best.pth.tar')
         if os.path.isfile(args.pretrain):
-            checkpoint = torch.load(args.pretrain, map_location='cuda:{}'.format(best_gpu))
+            #checkpoint = torch.load(args.pretrain, map_location='cuda:{}'.format(best_gpu))
+            checkpoint = torch.load(args.pretrain, map_location='cpu')
             model.load_state_dict(checkpoint['state_dict'], strict=False)
             logging.info("loaded pretrain checkpoint '%s' (epoch %s)", args.pretrain, checkpoint['epoch'])
+
+            # print parameters
+            row_list = []
+            for name, parameter in model.named_parameters():
+                if not parameter.requires_grad: continue
+                param = parameter.numel()
+                row_list.append([name, param])
+            df = pd.DataFrame(row_list, columns = ["Modules", "Parameters"])
+            pprint(df.to_string())
+            summary(model, (3, 32, 32))
+
+            
         else:
             raise ValueError('Pretrained model path error!')
     if lr_scheduler is None:
@@ -100,56 +125,101 @@ def main():
     num_parameters = sum([l.nelement() for l in model.parameters()])
     logging.info("number of parameters: %d", num_parameters)
 
-    criterion = nn.CrossEntropyLoss().cuda()
-    criterion_soft = CrossEntropyLossSoft().cuda()
+    #criterion = nn.CrossEntropyLoss().cuda()
+    #criterion_soft = CrossEntropyLossSoft().cuda()
+    criterion = nn.CrossEntropyLoss().cpu()
+    criterion_soft = CrossEntropyLossSoft().cpu()
     sum_writer = SummaryWriter(args.results_dir + '/summary')
 
     for epoch in range(args.start_epoch, args.epochs):
         model.train()
-        train_loss, train_prec1, train_prec5 = forward(train_loader, model, criterion, criterion_soft, epoch, True,
-                                                       optimizer, sum_writer)
+        train_loss, train_prec1, train_prec5 = forward(train_loader, model,
+            criterion, criterion_soft, epoch, True, False, optimizer, sum_writer)
         model.eval()
-        val_loss, val_prec1, val_prec5 = forward(val_loader, model, criterion, criterion_soft, epoch, False)
+        small_val_loss, small_val_prec1, small_val_prec5 = forward(val_loader, model, criterion, criterion_soft, epoch, False, True)
+        model.eval()
+        large_val_loss, large_val_prec1, large_val_prec5 = forward(val_loader, model, criterion, criterion_soft, epoch, False, False)
 
         if isinstance(lr_scheduler, torch.optim.lr_scheduler.ReduceLROnPlateau):
-            lr_scheduler.step(val_loss)
+            lr_scheduler.step(small_val_loss)
         else:
             lr_scheduler.step()
 
-        if best_prec1 is None:
-            is_best = True
-            best_prec1 = val_prec1[-1]
-        else:
-            is_best = val_prec1[-1] > best_prec1
-            best_prec1 = max(val_prec1[-1], best_prec1)
-        save_checkpoint(
-            {
-                'epoch': epoch + 1,
-                'model': args.model,
-                'state_dict': model.state_dict(),
-                'best_prec1': best_prec1,
-                'optimizer': optimizer.state_dict()
-            },
-            is_best,
-            path=args.results_dir + '/ckpt')
+        #if best_prec1 is None:
+            #is_best = True
+            #best_prec1 = val_prec1[-1]
+        #else:
+            #is_best = val_prec1[-1] > best_prec1
+            #best_prec1 = max(val_prec1[-1], best_prec1)
+        #save_checkpoint(
+            #{
+                #'epoch': epoch + 1,
+                #'model': args.model,
+                #'state_dict': model.state_dict(),
+                #'best_prec1': best_prec1,
+                #'optimizer': optimizer.state_dict()
+            #},
+            #is_best,
+            #path=args.results_dir + '/ckpt')
 
         if sum_writer is not None:
             sum_writer.add_scalar('lr', optimizer.param_groups[0]['lr'], global_step=epoch)
-            for bw, tl, tp1, tp5, vl, vp1, vp5 in zip(bit_width_list, train_loss, train_prec1, train_prec5, val_loss,
-                                                      val_prec1, val_prec5):
+            for bw, tl, tp1, tp5 in zip(bit_width_list, train_loss, train_prec1, train_prec5):
                 sum_writer.add_scalar('train_loss_{}'.format(bw), tl, global_step=epoch)
                 sum_writer.add_scalar('train_prec_1_{}'.format(bw), tp1, global_step=epoch)
                 sum_writer.add_scalar('train_prec_5_{}'.format(bw), tp5, global_step=epoch)
-                sum_writer.add_scalar('val_loss_{}'.format(bw), vl, global_step=epoch)
-                sum_writer.add_scalar('val_prec_1_{}'.format(bw), vp1, global_step=epoch)
-                sum_writer.add_scalar('val_prec_5_{}'.format(bw), vp5, global_step=epoch)
+            for bw, svl, svp1, svp5, lvl, lvp1, lvp5 in zip(bit_width_list,
+                small_val_loss, small_val_prec1, small_val_prec5,
+                large_val_loss, large_val_prec1, large_val_prec5):
+                sum_writer.add_scalar('small_val_loss_{}'.format(bw), svl, global_step=epoch)
+                sum_writer.add_scalar('small_val_prec_1_{}'.format(bw), svp1, global_step=epoch)
+                sum_writer.add_scalar('small_val_prec_5_{}'.format(bw), svp5, global_step=epoch)
+                sum_writer.add_scalar('large_val_prec_5_{}'.format(bw), lvl, global_step=epoch)
+                sum_writer.add_scalar('large_val_prec_5_{}'.format(bw), lvp1, global_step=epoch)
+                sum_writer.add_scalar('large_val_prec_5_{}'.format(bw), lvp5, global_step=epoch)
         logging.info('Epoch {}: \ntrain loss {:.2f}, train prec1 {:.2f}, train prec5 {:.2f}\n'
-                     '  val loss {:.2f},   val prec1 {:.2f},   val prec5 {:.2f}'.format(
-                         epoch, train_loss[-1], train_prec1[-1], train_prec5[-1], val_loss[-1], val_prec1[-1],
-                         val_prec5[-1]))
+                     '  small val loss {:.2f},   small val prec1 {:.2f},   small val prec5 {:.2f}\n'
+                     '  large val loss {:.2f},   large var prec1 {:.2f},   large var prec5 {:.2f}'.format(
+                         epoch, train_loss[-1], train_prec1[-1], train_prec5[-1], 
+                         small_val_loss[-1], small_val_prec1[-1], small_val_prec5[-1],
+                         large_val_loss[-1], large_val_prec1[-1], large_val_prec5[-1]))
+
+        #logging.info('Epoch {}: val loss {:.2f},   val prec1 {:.2f},   val prec5 {:.2f}'.format(
+                         #epoch, val_loss[-1], val_prec1[-1], val_prec5[-1]))
+        #wandb.log({"Accuracy (TOP-1)" : val_prec1[-1]})
+        #if val_prec1[-1] >= 92.0:
+            #torch.save(model.state_dict(), "pretrained/bit_2_2_2_fully_{}_{}".format(args.bit_width_list[-1], epoch))
+        if small_val_prec1[-1] >= 92.0:
+            data = { 'epoch' : epoch +1, 
+                     'model' : args.model, 
+                     'state_dict' : model.state_dict(), 
+                     'acc' : small_val_prec1[-1], 
+                     'optimizer' : optimizer.state_dict()}
+            dir = 'custom_pretrained_remove_last'
+            if not os.path.exists(dir):
+                os.makedirs(dir)
+            filename = '{}_small_reduce_and_all_layer_{}_bit_remove_last'.format(epoch, args.bit_width_list[-1])
+            torch.save(data, 'custom_pretrained_remove_last/{}.pth.tar'.format(filename))
+        if large_val_prec1[-1] >= 92.0:
+            data = { 'epoch' : epoch +1, 
+                     'model' : args.model, 
+                     'state_dict' : model.state_dict(), 
+                     'acc' : large_val_prec1[-1], 
+                     'optimizer' : optimizer.state_dict()}
+            dir = 'custom_pretrained_remove_last'
+            if not os.path.exists(dir):
+                os.makedirs(dir)
+            filename = '{}_large_reduce_and_all_layer_{}_bit_remove_last'.format(epoch, args.bit_width_list[-1])
+            torch.save(data, 'custom_pretrained_remove_last/{}.pth.tar'.format(filename))
+
+        #wandb.log({
+            #"Accuracy (TOP-1), test: small" : small_val_prec1[-1],
+            #"Accuracy (TOP-1), test: large" : large_val_prec1[-1],
+            #"Accuracy (TOP-5), test: small" : small_val_prec5[-1],
+            #"Accuracy (TOP-5), test: large" : large_val_prec5[-1]})
 
 
-def forward(data_loader, model, criterion, criterion_soft, epoch, training=True, optimizer=None, sum_writer=None):
+def forward(data_loader, model, criterion, criterion_soft, epoch, training=True, small = True, optimizer=None, sum_writer=None):
     bit_width_list = list(map(int, args.bit_width_list.split(',')))
     bit_width_list.sort()
 
@@ -157,25 +227,52 @@ def forward(data_loader, model, criterion, criterion_soft, epoch, training=True,
     top1 = [AverageMeter() for _ in bit_width_list]
     top5 = [AverageMeter() for _ in bit_width_list]
 
-    for i, (input, target) in enumerate(data_loader):
-        if not training:
-            with torch.no_grad():
-                input = input.cuda()
-                target = target.cuda(non_blocking=True)
 
-                for bw, am_l, am_t1, am_t5 in zip(bit_width_list, losses, top1, top5):
-                    model.apply(lambda m: setattr(m, 'wbit', bw))
-                    model.apply(lambda m: setattr(m, 'abit', bw))
-                    output = model(input)
-                    loss = criterion(output, target)
+    if not training:
+        if not small:
+            # original testset
+            for i, (input, target) in enumerate(data_loader):
+                with torch.no_grad():
+                    #input = input.cuda()
+                    #target = target.cuda(non_blocking=True)
+                    input = input.cpu()
+                    target = target.cpu()
 
-                    prec1, prec5 = accuracy(output.data, target, topk=(1, 5))
-                    am_l.update(loss.item(), input.size(0))
-                    am_t1.update(prec1.item(), input.size(0))
-                    am_t5.update(prec5.item(), input.size(0))
+                    for bw, am_l, am_t1, am_t5 in zip(bit_width_list, losses, top1, top5):
+                        model.apply(lambda m: setattr(m, 'wbit', bw))
+                        model.apply(lambda m: setattr(m, 'abit', bw))
+                        output = model(input)
+                        loss = criterion(output, target)
+
+                        prec1, prec5 = accuracy(output.data, target, topk=(1, 5))
+                        am_l.update(loss.item(), input.size(0))
+                        am_t1.update(prec1.item(), input.size(0))
+                        am_t5.update(prec5.item(), input.size(0))
         else:
-            input = input.cuda()
-            target = target.cuda(non_blocking=True)
+            with open("testset/data.pkl", "rb") as f:
+                input, target = pickle.load(f)
+                with torch.no_grad():
+                    #input = input.cuda()
+                    #target = target.cuda(non_blocking=True)
+                    input = input.cpu()
+                    target = target.cpu()
+
+                    for bw, am_l, am_t1, am_t5 in zip(bit_width_list, losses, top1, top5):
+                        model.apply(lambda m: setattr(m, 'wbit', bw))
+                        model.apply(lambda m: setattr(m, 'abit', bw))
+                        output = model(input)
+                        loss = criterion(output, target)
+
+                        prec1, prec5 = accuracy(output.data, target, topk=(1, 5))
+                        am_l.update(loss.item(), input.size(0))
+                        am_t1.update(prec1.item(), input.size(0))
+                        am_t5.update(prec5.item(), input.size(0))
+    else:
+        for i, (input, target) in enumerate(data_loader):
+            #input = input.cuda()
+            #target = target.cuda(non_blocking=True)
+            input = input.cpu()
+            target = target.cpu()
 
             optimizer.zero_grad()
 
