@@ -41,7 +41,6 @@ class PreActBasicBlockQ(nn.Module):
         self.stride = stride
 
         Conv2d = conv2d_quantize_fn(self.bit_list)
-        Conv2d_2 = conv2d_quantize_fn(self.bit_list)
         NormLayer = batchnorm_fn(self.bit_list)
 
         self.bn0 = NormLayer(in_planes)
@@ -54,7 +53,7 @@ class PreActBasicBlockQ(nn.Module):
         self.skip_conv = None
         if stride != 1:
             #self.skip_conv = nn.Conv2d(in_planes, out_planes, kernel_size=1, stride=stride, padding=0, bias=False)
-            self.skip_conv = Conv2d_2(in_planes, out_planes, kernel_size=1, stride=stride, padding=0, bias=False)
+            self.skip_conv = Conv2d(in_planes, out_planes, kernel_size=1, stride=stride, padding=0, bias=False)
             self.skip_bn = nn.BatchNorm2d(out_planes)
 
     def forward(self, x):
@@ -74,14 +73,9 @@ class PreActBasicBlockQ(nn.Module):
             out = self.act1(out) # First: Clamp(0.0, 1.0), Second: round((out * 3.0) / 3.0)
             # Out == (0.0, 0.3, 0.6, 1.0)
 
-            out = self.conv1(out) # Weight-quantization (-A, -B, B, A)
+        out = self.conv1(out) # Weight-quantization (-A, -B, B, A)
         out += shortcut
         return out
-
-    def get_channel(self):
-        return self.out_planes
-    def get_stride(self):
-        return self.stride
 
 
 class PreActResNet(nn.Module):
@@ -116,12 +110,9 @@ class PreActResNet(nn.Module):
     def forward(self, x):
         counter = set()
         out = self.conv0(x) # Full-precision convolution
-        sum = 0
         for layer in self.layers:
             stride, channel = layer.stride, layer.out_planes
             if not (stride, channel) in counter:
-                for p in layer.parameters():
-                    sum += p.numel()
                 out = layer(out)
                 counter.add((stride, channel))
         out = self.bn(out)

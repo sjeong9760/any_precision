@@ -10,3 +10,4 @@ pretrained*
 *.csv
 testset
 wandb
+*.pkl
